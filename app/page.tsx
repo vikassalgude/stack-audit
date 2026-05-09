@@ -2,15 +2,38 @@
 
 import { useState } from 'react';
 
-import { runAudit } from '../lib/auditEngine';
 import type { AuditResult, FormInput } from '../lib/types';
+import { AuditResults } from '../components/AuditResults';
 import { SpendForm } from '../components/SpendForm';
 
 export default function Home() {
   const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleAudit = (input: FormInput) => {
-    setAuditResult(runAudit(input));
+  const handleAudit = async (input: FormInput) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error ?? 'Unable to run audit');
+      }
+
+      setAuditResult(data.auditResult);
+    } catch (err) {
+      setError('We could not run the audit. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -31,19 +54,12 @@ export default function Home() {
 
         <SpendForm onAudit={handleAudit} />
 
-        {auditResult && (
-          <section className="rounded-2xl border border-dashed border-zinc-300 bg-white p-6">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-zinc-500">
-              Audit preview
-            </p>
-            <p className="mt-3 text-2xl font-semibold text-zinc-900">
-              ${auditResult.totalMonthlySavings.toFixed(0)} monthly savings spotted.
-            </p>
-            <p className="mt-2 text-sm text-zinc-600">
-              Detailed results, summary, and sharing flow come next.
-            </p>
-          </section>
+        {loading && (
+          <p className="text-sm font-semibold text-zinc-600">Running audit...</p>
         )}
+        {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
+
+        {auditResult && <AuditResults audit={auditResult} />}
       </main>
     </div>
   );
