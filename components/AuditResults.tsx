@@ -77,7 +77,7 @@ export function AuditResults({ audit }: AuditResultsProps) {
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-6">
         <h3 className="text-lg font-semibold text-zinc-900">Personalized summary</h3>
-        <div className="mt-3 min-h-[96px] text-sm text-zinc-700">
+        <div className="mt-3 min-h-24 text-sm text-zinc-700">
           {loadingSummary ? 'Generating summary...' : summary}
         </div>
       </section>

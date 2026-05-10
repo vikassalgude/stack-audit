@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { supabaseAdmin } from '../../../lib/supabase';
+import { prisma } from '../../../lib/prisma';
 import { sendAuditEmail } from '../../../lib/resend';
 import type { AuditResult } from '../../../lib/types';
 
@@ -33,56 +33,71 @@ function isRateLimited(ip: string) {
 }
 
 export async function POST(request: Request) {
+  console.log('[API POST /api/leads] Processing new lead submission...');
   try {
     const body = await request.json();
+    console.log('[API POST /api/leads] Raw request body parsed:', JSON.stringify(body, null, 2));
     const parsed = leadSchema.parse(body);
+    console.log('[API POST /api/leads] Validation passed for email:', parsed.email);
 
     if (parsed.website) {
+      console.log('[API POST /api/leads] Honeypot field (website) triggered. Silently rejecting.');
       return Response.json({ success: true });
     }
 
     const ip = request.headers.get('x-forwarded-for') ?? 'unknown';
     if (isRateLimited(ip)) {
+      console.log(`[API POST /api/leads] Rate limit hit for IP: ${ip}`);
       return Response.json({ error: 'Rate limit exceeded.' }, { status: 429 });
     }
 
-    const { data: auditRow, error: auditError } = await supabaseAdmin
-      .from('audits')
-      .select('audit_data')
-      .eq('id', parsed.auditId)
-      .single();
+    console.log(`[API POST /api/leads] Fetching audit data from Prisma for auditId: ${parsed.auditId}`);
+    const auditRow = await prisma.audit.findUnique({
+      where: { id: parsed.auditId },
+      select: { audit_data: true }
+    });
 
-    if (auditError || !auditRow?.audit_data) {
+    if (!auditRow?.audit_data) {
+      console.error('[API POST /api/leads] Audit fetch failed: No data found');
       return Response.json({ error: 'Audit not found.' }, { status: 404 });
     }
 
-    const audit = auditRow.audit_data as AuditResult;
+    const audit = JSON.parse(auditRow.audit_data) as AuditResult;
+    console.log(`[API POST /api/leads] Audit data retrieved successfully. Inserting lead into DB.`);
 
-    const { error } = await supabaseAdmin.from('leads').insert({
-      audit_id: parsed.auditId,
-      email: parsed.email,
-      company_name: parsed.companyName,
-      role: parsed.role,
-      team_size: parsed.teamSize,
-      monthly_savings: audit.totalMonthlySavings,
-      savings_tier: audit.savingsTier,
-      email_sent: false,
+    await prisma.lead.create({
+      data: {
+        audit_id: parsed.auditId,
+        email: parsed.email,
+        company_name: parsed.companyName,
+        role: parsed.role,
+        team_size: parsed.teamSize,
+        monthly_savings: audit.totalMonthlySavings,
+        savings_tier: audit.savingsTier,
+        email_sent: false,
+      }
     });
 
-    if (error) {
-      return Response.json({ error: error.message }, { status: 500 });
-    }
+    console.log(`[API POST /api/leads] Lead successfully captured. Sending summary email to ${parsed.email}...`);
 
     await sendAuditEmail({ to: parsed.email, audit });
+    console.log(`[API POST /api/leads] Email sent successfully.`);
 
-    await supabaseAdmin
-      .from('leads')
-      .update({ email_sent: true })
-      .eq('audit_id', parsed.auditId)
-      .eq('email', parsed.email);
+    // If there are multiple leads for the same email + audit_id, updateMany resolves it.
+    await prisma.lead.updateMany({
+      where: {
+        audit_id: parsed.auditId,
+        email: parsed.email,
+      },
+      data: {
+        email_sent: true
+      }
+    });
+    console.log(`[API POST /api/leads] Successfully marked email as sent in DB.`);
 
     return Response.json({ success: true });
   } catch (error) {
+    console.error('[API POST /api/leads] Route error Catch block:', error);
     return Response.json({ error: 'Invalid request payload.' }, { status: 400 });
   }
 }

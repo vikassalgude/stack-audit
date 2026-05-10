@@ -11,10 +11,19 @@ import { ToolRow } from './ToolRow';
 
 const STORAGE_KEY = 'credex-audit-form';
 
-const toolIds = Object.keys(TOOL_DEFINITIONS) as ToolId[];
+const toolIds = Object.keys(TOOL_DEFINITIONS) as [ToolId, ...ToolId[]];
 
 const toolSchema = z.object({
-  toolId: z.enum(toolIds),
+  toolId: z.enum([
+    'cursor',
+    'github-copilot',
+    'claude',
+    'chatgpt',
+    'anthropic-api',
+    'openai-api',
+    'gemini',
+    'windsurf',
+  ]),
   plan: z.string().min(1),
   monthlySpend: z.coerce.number().min(0, 'Spend must be at least $0'),
   seats: z.coerce.number().int().min(1, 'Seats must be at least 1'),
@@ -54,7 +63,7 @@ export function SpendForm({ onAudit }: SpendFormProps) {
     reset,
     formState: { errors },
   } = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(formSchema) as any,
     defaultValues,
   });
 

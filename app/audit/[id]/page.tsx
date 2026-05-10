@@ -1,22 +1,21 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
-import { supabaseAdmin } from '../../../lib/supabase';
+import { prisma } from '../../../lib/prisma';
 import type { AuditResult } from '../../../lib/types';
 import { AuditResults } from '../../../components/AuditResults';
 
 async function getAudit(id: string): Promise<AuditResult | null> {
-  const { data, error } = await supabaseAdmin
-    .from('audits')
-    .select('audit_data')
-    .eq('id', id)
-    .single();
+  const auditRow = await prisma.audit.findUnique({
+    where: { id },
+    select: { audit_data: true }
+  });
 
-  if (error || !data?.audit_data) {
+  if (!auditRow?.audit_data) {
     return null;
   }
 
-  return data.audit_data as AuditResult;
+  return JSON.parse(auditRow.audit_data) as AuditResult;
 }
 
 export async function generateMetadata({

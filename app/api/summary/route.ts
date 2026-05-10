@@ -19,7 +19,7 @@ const summarySchema = z.object({
       teamSize: z.number(),
       useCase: z.enum(['coding', 'writing', 'data', 'research', 'mixed']),
     }),
-    toolResults: z.array(z.record(z.any())),
+    toolResults: z.array(z.record(z.string(), z.any())),
     totalMonthlySpend: z.number(),
     totalOptimizedMonthlySpend: z.number(),
     totalMonthlySavings: z.number(),
@@ -31,15 +31,20 @@ const summarySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  console.log('[API POST /api/summary] Starting AI summary generation...');
   try {
     const body = await request.json();
+    console.log('[API POST /api/summary] Raw body received');
     const parsed = summarySchema.parse(body);
     const audit = parsed.audit as AuditResult;
+    console.log(`[API POST /api/summary] Validated request for auditId: ${audit.auditId}`);
 
     const summary = await generateAuditSummary(audit);
+    console.log('[API POST /api/summary] Anthropic generated summary successfully');
 
     return Response.json({ summary });
   } catch (error) {
+    console.error('[API POST /api/summary] Error generating AI summary:', error);
     return Response.json({ error: 'Unable to generate summary.' }, { status: 400 });
   }
 }

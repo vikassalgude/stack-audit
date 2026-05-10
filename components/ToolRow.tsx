@@ -15,7 +15,7 @@ type FormValues = {
     seats: number;
   }>;
   teamSize: number;
-  useCase: string;
+  useCase: "coding" | "writing" | "mixed" | "data" | "research";
 };
 
 interface ToolOption {

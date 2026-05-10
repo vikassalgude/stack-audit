@@ -27,7 +27,7 @@ export async function sendAuditEmail(params: {
   const includeCredex = params.audit.savingsTier === 'significant';
 
   return resend.emails.send({
-    from: 'Credex Audit <audit@credex.rocks>',
+    from: 'Credex Audit <onboarding@resend.dev>',
     to: params.to,
     subject: `Your AI Spend Audit — ${params.audit.toolResults.length} tools analyzed`,
     html: `

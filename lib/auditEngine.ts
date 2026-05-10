@@ -88,9 +88,9 @@ function getPlanPrice(toolId: ToolId, planLabel: string): number | null {
   const planKey = PLAN_KEY_BY_LABEL[toolId]?.[normalizeLabel(planLabel)];
   if (!planKey) return null;
 
-  const toolPricing = PRICING[toolId];
-  const plan = toolPricing?.[planKey as keyof typeof toolPricing];
-  if (!plan) return null;
+  const toolPricing = PRICING[toolId] as any;
+  const plan = toolPricing?.[planKey];
+  if (!plan || typeof plan.price !== 'number') return null;
 
   return plan.price;
 }
@@ -146,12 +146,20 @@ function getToolName(toolId: ToolId, fallback: string) {
 }
 
 export function runAudit(input: FormInput): AuditResult {
+  console.log(`[auditEngine runAudit] Starting pure audit engine logic for ${input.tools.length} tools. Use Case: ${input.useCase}, Team Size: ${input.teamSize}`);
+  
   const toolIds = new Set(input.tools.map((tool) => tool.toolId));
   const hasAnthropicApi = toolIds.has('anthropic-api');
   const hasOpenAiApi = toolIds.has('openai-api');
 
+  console.log(`[auditEngine runAudit] Detected API tools - Anthropic: ${hasAnthropicApi}, OpenAI: ${hasOpenAiApi}`);
+
   const shouldConsolidateResearch = input.useCase === 'research' && input.tools.length >= 3;
   const consolidationTarget = input.teamSize >= 5 ? 'Claude Team' : 'ChatGPT Team';
+
+  if (shouldConsolidateResearch) {
+    console.log(`[auditEngine runAudit] Flagged for research consolidation. Target: ${consolidationTarget}`);
+  }
 
   const consolidationToolId = shouldConsolidateResearch
     ? input.tools.reduce((max, tool) =>
@@ -190,7 +198,7 @@ export function runAudit(input: FormInput): AuditResult {
         'ChatGPT subscriptions overlap with OpenAI API access for technical users, creating duplicate costs.';
     } else if (isTeamPlan(currentPlan) && seats < 3 && TEAM_DOWNGRADE_PLAN[tool.toolId]) {
       recommendation = 'downgrade';
-      recommendedPlan = TEAM_DOWNGRADE_PLAN[tool.toolId];
+      recommendedPlan = TEAM_DOWNGRADE_PLAN[tool.toolId] as string;
       recommendedAction = `Downgrade to ${recommendedPlan}.`;
       const downgradeCost = estimatePlanCost(tool.toolId, recommendedPlan, seats);
       if (downgradeCost !== null) {
@@ -199,7 +207,7 @@ export function runAudit(input: FormInput): AuditResult {
       reasoning = `Team plans are designed for 3+ users; at ${seats} seats you pay a per-seat premium with no added value.`;
     } else if (isEnterprisePlan(currentPlan) && currentSpend < 500 && ENTERPRISE_DOWNGRADE_PLAN[tool.toolId]) {
       recommendation = 'downgrade';
-      recommendedPlan = ENTERPRISE_DOWNGRADE_PLAN[tool.toolId];
+      recommendedPlan = ENTERPRISE_DOWNGRADE_PLAN[tool.toolId] as string;
       recommendedAction = `Downgrade to ${recommendedPlan}.`;
       const downgradeCost = estimatePlanCost(tool.toolId, recommendedPlan, seats);
       if (downgradeCost !== null) {
@@ -297,7 +305,7 @@ export function runAudit(input: FormInput): AuditResult {
   );
   const totalAnnualSavings = totalMonthlySavings * 12;
 
-  return {
+  const result: AuditResult = {
     auditId: createAuditId(),
     formInput: input,
     toolResults,
@@ -308,4 +316,7 @@ export function runAudit(input: FormInput): AuditResult {
     savingsTier: getSavingsTier(totalMonthlySavings),
     generatedAt: new Date().toISOString(),
   };
+
+  console.log(`[auditEngine runAudit] Completed engine evaluation. Savings generated: $${totalMonthlySavings}/mo (${result.savingsTier} tier).`);
+  return result;
 }

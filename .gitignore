@@ -51,3 +51,4 @@ AGENTS.md
 .env.production.local
 Credex WebDev 2026 Assignment.pdf
 Credex WebDev 2026 Assignment.txt
+/lib/generated/prisma

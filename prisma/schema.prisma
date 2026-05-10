@@ -1,0 +1,42 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Audit {
+  id                    String   @id @default(uuid())
+  slug                  String   // Kept for compatibility if needed
+  audit_data            String   // SQLite doesn't support JSON, so we store stringified JSON
+  total_monthly_savings Float
+  savings_tier          String
+  team_size             Int
+  use_case              String
+  tools_audited         String   // Stringified array
+  created_at            DateTime @default(now())
+
+  leads                 Lead[]
+}
+
+model Lead {
+  id              Int      @id @default(autoincrement())
+  audit_id        String
+  email           String
+  company_name    String?
+  role            String?
+  team_size       Int?
+  monthly_savings Float
+  savings_tier    String
+  email_sent      Boolean  @default(false)
+  created_at      DateTime @default(now())
+
+  audit           Audit    @relation(fields: [audit_id], references: [id], onDelete: Cascade)
+}

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { runAudit } from '../../../lib/auditEngine';
-import { supabaseAdmin } from '../../../lib/supabase';
+import { prisma } from '../../../lib/prisma';
 import type { FormInput } from '../../../lib/types';
 
 const formSchema = z.object({
@@ -21,28 +21,37 @@ const formSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  console.log('[API POST /api/audit] Starting audit request processing...');
   try {
     const body = (await request.json()) as FormInput;
-    const parsed = formSchema.parse(body);
+    console.log('[API POST /api/audit] Raw request body parsed:', JSON.stringify(body, null, 2));
+    const parsed = formSchema.parse(body) as FormInput;
+    console.log('[API POST /api/audit] Zod schema validation passed');
 
     const auditResult = runAudit(parsed);
+    console.log(`[API POST /api/audit] runAudit completed. Generated auditId: ${auditResult.auditId}, total savings: $${auditResult.totalMonthlySavings}`);
 
-    const { error } = await supabaseAdmin.from('audits').insert({
+    const insertPayload = {
       id: auditResult.auditId,
-      audit_data: auditResult,
+      slug: auditResult.auditId,
+      audit_data: JSON.stringify(auditResult),
       total_monthly_savings: auditResult.totalMonthlySavings,
       savings_tier: auditResult.savingsTier,
       team_size: auditResult.formInput.teamSize,
       use_case: auditResult.formInput.useCase,
-      tools_audited: auditResult.toolResults.map((tool) => tool.toolName),
+      tools_audited: JSON.stringify(auditResult.toolResults.map((tool) => tool.toolName)),
+    };
+    
+    console.log('[API POST /api/audit] Attempting Prisma insert with payload...');
+
+    await prisma.audit.create({
+      data: insertPayload
     });
 
-    if (error) {
-      return Response.json({ error: error.message }, { status: 500 });
-    }
-
+    console.log(`[API POST /api/audit] Prisma insert successful for auditId: ${auditResult.auditId}`);
     return Response.json({ auditId: auditResult.auditId, auditResult });
   } catch (error) {
-    return Response.json({ error: 'Invalid request payload.' }, { status: 400 });
+    console.error('[API POST /api/audit] Audit route error:', error);
+    return Response.json({ error: 'Invalid request payload or DB error.' }, { status: 400 });
   }
 }
