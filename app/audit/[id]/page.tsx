@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
-import { prisma } from '../../../lib/prisma';
+import { getAuditById } from '../../../lib/db';
 import type { AuditResult } from '../../../lib/types';
 import { AuditResults } from '../../../components/AuditResults';
 
@@ -9,16 +9,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 async function getAudit(id: string): Promise<AuditResult | null> {
-  const auditRow = await prisma.audit.findUnique({
-    where: { id },
-    select: { audit_data: true }
-  });
-
-  if (!auditRow?.audit_data) {
-    return null;
-  }
-
-  return JSON.parse(auditRow.audit_data) as AuditResult;
+  return getAuditById(id);
 }
 
 export async function generateMetadata({

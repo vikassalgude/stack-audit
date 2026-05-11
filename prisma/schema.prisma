@@ -14,16 +14,20 @@ datasource db {
 
 model Audit {
   id                    String   @id @default(uuid())
-  slug                  String   // Kept for compatibility if needed
-  audit_data            String   // SQLite doesn't support JSON, so we store stringified JSON
+  slug                  String   @unique
+  audit_data            String
   total_monthly_savings Float
   savings_tier          String
   team_size             Int
   use_case              String
-  tools_audited         String   // Stringified array
+  tools_audited         String
   created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
 
   leads                 Lead[]
+
+  @@index([created_at])
+  @@index([savings_tier])
 }
 
 model Lead {
@@ -37,6 +41,11 @@ model Lead {
   savings_tier    String
   email_sent      Boolean  @default(false)
   created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
 
   audit           Audit    @relation(fields: [audit_id], references: [id], onDelete: Cascade)
+
+  @@index([audit_id])
+  @@index([email])
+  @@index([created_at])
 }

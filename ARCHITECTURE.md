@@ -7,7 +7,7 @@ flowchart LR
   UI --> API[/API Routes/]
   API --> AE[Audit Engine]
   API --> DB[(SQLite via Prisma)]
-  API --> LLM[Anthropic API]
+  API --> LLM[Gemini API]
   API --> Email[Resend Email]
   DB --> UI
 ```
@@ -23,7 +23,7 @@ flowchart LR
 ## Why This Stack
 - Next.js + TypeScript for rapid iteration, App Router, and reliable SSR for the shareable URL.
 - Prisma + SQLite for local persistence with a clean path to Postgres later.
-- Anthropic for the required AI summary feature and deterministic fallback on failure.
+- Gemini for the required AI summary feature and deterministic fallback on failure.
 
 ## Scale to 10k Audits/Day
 - Move SQLite to Postgres with connection pooling.

@@ -1,7 +1,7 @@
 # PROMPTS
 
 ## Summary Prompt (Anthropic)
-Source: lib/anthropic.ts
+Source: lib/ai/summary.ts
 
 You are a financial advisor specializing in software tooling costs for startups.
 

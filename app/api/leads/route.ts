@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { prisma } from '../../../lib/prisma';
+import { createLead, getAuditById, markLeadEmailSent } from '../../../lib/db';
 import { sendAuditEmail } from '../../../lib/resend';
 import type { AuditResult } from '../../../lib/types';
 
@@ -52,30 +52,22 @@ export async function POST(request: Request) {
     }
 
     console.log(`[API POST /api/leads] Fetching audit data from Prisma for auditId: ${parsed.auditId}`);
-    const auditRow = await prisma.audit.findUnique({
-      where: { id: parsed.auditId },
-      select: { audit_data: true }
-    });
+    const audit = await getAuditById(parsed.auditId);
 
-    if (!auditRow?.audit_data) {
+    if (!audit) {
       console.error('[API POST /api/leads] Audit fetch failed: No data found');
       return Response.json({ error: 'Audit not found.' }, { status: 404 });
     }
-
-    const audit = JSON.parse(auditRow.audit_data) as AuditResult;
     console.log(`[API POST /api/leads] Audit data retrieved successfully. Inserting lead into DB.`);
 
-    await prisma.lead.create({
-      data: {
-        audit_id: parsed.auditId,
-        email: parsed.email,
-        company_name: parsed.companyName,
-        role: parsed.role,
-        team_size: parsed.teamSize,
-        monthly_savings: audit.totalMonthlySavings,
-        savings_tier: audit.savingsTier,
-        email_sent: false,
-      }
+    await createLead({
+      auditId: parsed.auditId,
+      email: parsed.email,
+      companyName: parsed.companyName,
+      role: parsed.role,
+      teamSize: parsed.teamSize,
+      monthlySavings: audit.totalMonthlySavings,
+      savingsTier: audit.savingsTier,
     });
 
     console.log(`[API POST /api/leads] Lead successfully captured. Sending summary email to ${parsed.email}...`);
@@ -84,15 +76,7 @@ export async function POST(request: Request) {
     console.log(`[API POST /api/leads] Email sent successfully.`);
 
     // If there are multiple leads for the same email + audit_id, updateMany resolves it.
-    await prisma.lead.updateMany({
-      where: {
-        audit_id: parsed.auditId,
-        email: parsed.email,
-      },
-      data: {
-        email_sent: true
-      }
-    });
+    await markLeadEmailSent(parsed.auditId, parsed.email);
     console.log(`[API POST /api/leads] Successfully marked email as sent in DB.`);
 
     return Response.json({ success: true });

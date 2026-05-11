@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { generateAuditSummary } from '../../../lib/anthropic';
+import { generateAuditSummary } from '../../../lib/ai/summary';
 import type { AuditResult } from '../../../lib/types';
 
 const summarySchema = z.object({
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     console.log(`[API POST /api/summary] Validated request for auditId: ${audit.auditId}`);
 
     const summary = await generateAuditSummary(audit);
-    console.log('[API POST /api/summary] Anthropic generated summary successfully');
+    console.log('[API POST /api/summary] Gemini generated summary successfully');
 
     return Response.json({ summary });
   } catch (error) {

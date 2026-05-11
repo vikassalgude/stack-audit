@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { runAudit } from '../../../lib/auditEngine';
-import { prisma } from '../../../lib/prisma';
+import { createAudit } from '../../../lib/db';
 import type { FormInput } from '../../../lib/types';
 
 const formSchema = z.object({
@@ -31,22 +31,9 @@ export async function POST(request: Request) {
     const auditResult = runAudit(parsed);
     console.log(`[API POST /api/audit] runAudit completed. Generated auditId: ${auditResult.auditId}, total savings: $${auditResult.totalMonthlySavings}`);
 
-    const insertPayload = {
-      id: auditResult.auditId,
-      slug: auditResult.auditId,
-      audit_data: JSON.stringify(auditResult),
-      total_monthly_savings: auditResult.totalMonthlySavings,
-      savings_tier: auditResult.savingsTier,
-      team_size: auditResult.formInput.teamSize,
-      use_case: auditResult.formInput.useCase,
-      tools_audited: JSON.stringify(auditResult.toolResults.map((tool) => tool.toolName)),
-    };
-    
     console.log('[API POST /api/audit] Attempting Prisma insert with payload...');
 
-    await prisma.audit.create({
-      data: insertPayload
-    });
+    await createAudit(auditResult);
 
     console.log(`[API POST /api/audit] Prisma insert successful for auditId: ${auditResult.auditId}`);
     return Response.json({ auditId: auditResult.auditId, auditResult });

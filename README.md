@@ -22,7 +22,7 @@ Create a `.env` file with:
 ```
 DATABASE_URL="file:./dev.db"
 NEXT_PUBLIC_BASE_URL="http://localhost:3000"
-ANTHROPIC_API_KEY=""
+GEMINI_API_KEY=""
 RESEND_API_KEY=""
 ```
 
@@ -59,7 +59,7 @@ Recommended: Vercel or Render. Ensure env vars are configured and Prisma is migr
 4. Add environment variables:
 	- `DATABASE_URL` = `file:./dev.db`
 	- `NEXT_PUBLIC_BASE_URL` = your deployed URL (for example, `https://your-app.vercel.app`)
-	- `ANTHROPIC_API_KEY` (if you want AI summaries)
+	- `GEMINI_API_KEY` (if you want AI summaries)
 	- `RESEND_API_KEY` (for email sending)
 5. Deploy.
 

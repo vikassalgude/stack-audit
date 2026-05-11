@@ -1,8 +1,11 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-import type { AuditResult } from './types';
+import type { AuditResult } from '../types';
 
-const model = 'claude-3-5-sonnet-20241022';
+const MODEL_NAME = 'gemini-1.5-pro';
+const MAX_TOKENS = 300;
+const TEMPERATURE = 0.3;
+const MAX_RETRIES = 2;
 
 function buildPrompt(audit: AuditResult) {
   const toolNames = audit.toolResults.map((tool) => tool.toolName).join(', ');
@@ -55,33 +58,83 @@ function generateFallbackSummary(audit: AuditResult): string {
   }.`;
 }
 
+function shouldRetry(error: unknown) {
+  if (!error) return false;
+  const message = String((error as Error).message || error);
+  return message.includes('429') || message.includes('rate') || message.includes('timeout');
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 export async function generateAuditSummary(audit: AuditResult): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return generateFallbackSummary(audit);
   }
 
-  try {
-    const client = new Anthropic({ apiKey });
-    const response = await client.messages.create({
-      model,
-      max_tokens: 250,
-      temperature: 0.3,
-      messages: [
-        {
-          role: 'user',
-          content: buildPrompt(audit),
-        },
-      ],
-    });
+  const client = new GoogleGenerativeAI(apiKey);
+  const model = client.getGenerativeModel({
+    model: MODEL_NAME,
+    generationConfig: {
+      maxOutputTokens: MAX_TOKENS,
+      temperature: TEMPERATURE,
+    },
+  });
 
-    const content = response.content[0];
-    if (content?.type === 'text' && content.text.trim().length > 0) {
-      return content.text.trim();
+  const prompt = buildPrompt(audit);
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+    try {
+      const response = await model.generateContent(prompt);
+      const text = response.response.text();
+      if (text && text.trim().length > 0) {
+        return text.trim();
+      }
+    } catch (error) {
+      if (attempt < MAX_RETRIES && shouldRetry(error)) {
+        await delay(300 * (attempt + 1));
+        continue;
+      }
+      console.error('Gemini summary error', error);
+      break;
     }
-  } catch (error) {
-    console.error('Anthropic summary error', error);
   }
 
   return generateFallbackSummary(audit);
+}
+
+export async function streamAuditSummary(audit: AuditResult): Promise<AsyncIterable<string>> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return (async function* fallback() {
+      yield generateFallbackSummary(audit);
+    })();
+  }
+
+  const client = new GoogleGenerativeAI(apiKey);
+  const model = client.getGenerativeModel({
+    model: MODEL_NAME,
+    generationConfig: {
+      maxOutputTokens: MAX_TOKENS,
+      temperature: TEMPERATURE,
+    },
+  });
+
+  const prompt = buildPrompt(audit);
+  const stream = await model.generateContentStream(prompt);
+
+  async function* iterator() {
+    for await (const chunk of stream.stream) {
+      const text = chunk.text();
+      if (text) {
+        yield text;
+      }
+    }
+  }
+
+  return iterator();
 }
