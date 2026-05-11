@@ -5,6 +5,9 @@ import { prisma } from '../../../lib/prisma';
 import type { AuditResult } from '../../../lib/types';
 import { AuditResults } from '../../../components/AuditResults';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 async function getAudit(id: string): Promise<AuditResult | null> {
   const auditRow = await prisma.audit.findUnique({
     where: { id },
@@ -21,9 +24,14 @@ async function getAudit(id: string): Promise<AuditResult | null> {
 export async function generateMetadata({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const audit = await getAudit(params.id);
+  const { id } = await params;
+  if (!id) {
+    return { title: 'Audit not found' };
+  }
+
+  const audit = await getAudit(id);
 
   if (!audit) {
     return {
@@ -50,8 +58,17 @@ export async function generateMetadata({
   };
 }
 
-export default async function AuditPage({ params }: { params: { id: string } }) {
-  const audit = await getAudit(params.id);
+export default async function AuditPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  if (!id) {
+    notFound();
+  }
+
+  const audit = await getAudit(id);
 
   if (!audit) {
     notFound();

@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Credex AI Spend Audit
 
-## Getting Started
+A free AI spend audit tool that helps founders and engineering managers identify waste across AI tooling subscriptions. Users input their plans and spend, get a savings breakdown, and can capture a shareable report with an optional Credex consultation prompt for large savings.
 
-First, run the development server:
+Live URL: TODO
 
+## Screenshots / Demo
+- Screenshot 1: TODO
+- Screenshot 2: TODO
+- Screenshot 3: TODO
+- (Optional) 30-second demo video: TODO
+
+## Quick Start
+
+### Install
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Configure environment
+Create a `.env` file with:
+```
+DATABASE_URL="file:./dev.db"
+NEXT_PUBLIC_BASE_URL="http://localhost:3000"
+ANTHROPIC_API_KEY=""
+RESEND_API_KEY=""
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Prisma setup
+```bash
+npx prisma db push
+npx prisma generate
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Run locally
+```bash
+npm run dev
+```
 
-## Learn More
+### Tests
+```bash
+npx vitest run
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Decisions (Trade-offs)
+1. Prisma + SQLite for local simplicity and fast iteration; can swap to Postgres for scale.
+2. Deterministic audit logic (not LLM-based) to keep recommendations defensible and finance-friendly.
+3. Email capture after results to align with the “value-first” requirement and reduce drop-off.
+4. JSON serialized audit payloads stored in SQLite to keep schema simple while preserving full reports.
+5. AI summary as a separate endpoint to keep the core audit instant and resilient to LLM failures.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deploy
+Recommended: Vercel or Render. Ensure env vars are configured and Prisma is migrated.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Vercel Deployment Guide (No Vercel config files)
+1. Push this repo to GitHub.
+2. Go to https://vercel.com/new and import the repo.
+3. Set the project to use the default Next.js settings.
+4. Add environment variables:
+	- `DATABASE_URL` = `file:./dev.db`
+	- `NEXT_PUBLIC_BASE_URL` = your deployed URL (for example, `https://your-app.vercel.app`)
+	- `ANTHROPIC_API_KEY` (if you want AI summaries)
+	- `RESEND_API_KEY` (for email sending)
+5. Deploy.
 
-## Deploy on Vercel
+Notes:
+- SQLite is fine for demos and local testing, but for production scale use Postgres and update `DATABASE_URL` accordingly.
+- Re-run `npx prisma generate` locally if you change the schema.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Repository Files
+This repo includes the required Credex deliverables (ARCHITECTURE, DEVLOG, REFLECTION, PROMPTS, PRICING_DATA, etc.) at the root.
