@@ -11,10 +11,12 @@ interface LeadCaptureProps {
 
 export function LeadCapture({ audit }: LeadCaptureProps) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [message, setMessage] = useState<string | null>(null);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setStatus('loading');
+    setMessage(null);
 
     const formData = new FormData(event.currentTarget);
     const payload = {
@@ -33,13 +35,17 @@ export function LeadCapture({ audit }: LeadCaptureProps) {
         body: JSON.stringify(payload),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Lead capture failed');
+        throw new Error(data.error || 'Lead capture failed');
       }
 
       setStatus('success');
-    } catch (error) {
+      setMessage(data.message || 'Report sent. Check your inbox.');
+    } catch (error: any) {
       setStatus('error');
+      setMessage(error.message || 'Something went wrong. Try again.');
     }
   };
 
@@ -90,10 +96,10 @@ export function LeadCapture({ audit }: LeadCaptureProps) {
       </form>
 
       {status === 'success' && (
-        <p className="mt-3 text-sm text-emerald-600">Report sent. Check your inbox.</p>
+        <p className="mt-3 text-sm text-emerald-600">{message}</p>
       )}
       {status === 'error' && (
-        <p className="mt-3 text-sm text-red-600">Something went wrong. Try again.</p>
+        <p className="mt-3 text-sm text-red-600">{message}</p>
       )}
 
       {audit.savingsTier === 'significant' && (

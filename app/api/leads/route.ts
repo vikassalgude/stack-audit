@@ -72,14 +72,30 @@ export async function POST(request: Request) {
 
     console.log(`[API POST /api/leads] Lead successfully captured. Sending summary email to ${parsed.email}...`);
 
-    await sendAuditEmail({ to: parsed.email, audit });
-    console.log(`[API POST /api/leads] Email sent successfully.`);
+    // Email delivery is best-effort — lead capture should succeed even if email fails
+    let emailSent = false;
+    try {
+      const emailRes = await sendAuditEmail({ to: parsed.email, audit });
+      
+      if (emailRes.error) {
+        console.error('[API POST /api/leads] Resend SDK error:', emailRes.error);
+      } else {
+        emailSent = true;
+        console.log(`[API POST /api/leads] Email sent successfully.`);
+        await markLeadEmailSent(parsed.auditId, parsed.email);
+        console.log(`[API POST /api/leads] Successfully marked email as sent.`);
+      }
+    } catch (emailError: any) {
+      console.error('[API POST /api/leads] Email delivery failed (non-fatal):', emailError.message);
+    }
 
-    // If there are multiple leads for the same email + audit_id, updateMany resolves it.
-    await markLeadEmailSent(parsed.auditId, parsed.email);
-    console.log(`[API POST /api/leads] Successfully marked email as sent in DB.`);
-
-    return Response.json({ success: true });
+    return Response.json({ 
+      success: true,
+      emailSent,
+      message: emailSent 
+        ? 'Report sent to your email.' 
+        : 'Lead captured. Email could not be sent — check your Resend API key and sender domain.'
+    });
   } catch (error: any) {
     console.error('[API POST /api/leads] Route error Catch block:', error);
     const message = error?.message || 'Invalid request payload.';

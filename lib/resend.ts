@@ -9,9 +9,16 @@ export async function sendAuditEmail(params: {
   const apiKey = process.env.RESEND_API_KEY;
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
 
-  if (!apiKey || !baseUrl) {
-    throw new Error('Resend or base URL environment variables are not set.');
+  if (!apiKey) {
+    console.error('[Resend] RESEND_API_KEY is missing');
+    throw new Error('Email configuration is missing (API Key).');
   }
+
+  if (!baseUrl) {
+    console.warn('[Resend] NEXT_PUBLIC_BASE_URL is missing, falling back to localhost');
+  }
+
+  const effectiveBaseUrl = baseUrl || 'http://localhost:3000';
 
   const resend = new Resend(apiKey);
 
@@ -22,7 +29,7 @@ export async function sendAuditEmail(params: {
     .map((tool) => `<li>${tool.recommendedAction}</li>`)
     .join('');
 
-  const auditUrl = `${baseUrl.replace(/\/$/, '')}/audit/${params.audit.auditId}`;
+  const auditUrl = `${effectiveBaseUrl.replace(/\/$/, '')}/audit/${params.audit.auditId}`;
 
   const includeCredex = params.audit.savingsTier === 'significant';
 
