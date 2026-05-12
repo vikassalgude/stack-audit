@@ -28,7 +28,9 @@ export default function Home() {
         throw new Error(data?.error ?? 'Unable to run audit');
       }
 
-      setAuditResult(data.auditResult);
+      const auditResult = data.auditResult as AuditResult;
+      auditResult.auditId = data.auditId; // Use the public/stateless ID
+      setAuditResult(auditResult);
     } catch (err) {
       setError('We could not run the audit. Please try again.');
     } finally {
