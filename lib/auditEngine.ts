@@ -1,3 +1,4 @@
+import { nanoid } from 'nanoid';
 import { PRICING, TOOL_DEFINITIONS } from './pricing-data';
 import type {
   AuditResult,
@@ -71,14 +72,7 @@ const ENTERPRISE_DOWNGRADE_PLAN: Partial<Record<ToolId, string>> = {
 
 const CREDEX_ELIGIBLE_TOOLS = new Set<ToolId>(['cursor', 'claude']);
 
-const fallbackUuid = () =>
-  'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
-    const rand = Math.floor(Math.random() * 16);
-    const value = char === 'x' ? rand : (rand % 4) + 8;
-    return value.toString(16);
-  });
-
-const createAuditId = () => globalThis.crypto?.randomUUID?.() ?? fallbackUuid();
+const createAuditId = () => nanoid(12);
 
 function normalizeLabel(label: string) {
   return label.trim().toLowerCase();
@@ -245,22 +239,30 @@ export function runAudit(input: FormInput): AuditResult {
         estimatedMonthlyCost = switchCost;
       }
       reasoning = 'Cursor is optimized for coding, while Claude Pro delivers better value for writing-heavy work.';
-    } else if (shouldConsolidateResearch && consolidationToolId === tool.toolId) {
-      recommendation = 'consolidate';
-      recommendedTool = consolidationTarget.split(' ')[0];
-      recommendedPlan = consolidationTarget.split(' ').slice(1).join(' ');
-      recommendedAction = `Consolidate research tooling into ${consolidationTarget}.`;
-      const targetToolId = recommendedTool?.toLowerCase() === 'claude' ? 'claude' : 'chatgpt';
-      const consolidationCost = estimatePlanCost(
-        targetToolId,
-        recommendedPlan,
-        input.teamSize
-      );
-      if (consolidationCost !== null) {
-        estimatedMonthlyCost = consolidationCost;
+    } else if (shouldConsolidateResearch) {
+      if (consolidationToolId === tool.toolId) {
+        recommendation = 'consolidate';
+        recommendedTool = consolidationTarget.split(' ')[0];
+        recommendedPlan = consolidationTarget.split(' ').slice(1).join(' ');
+        recommendedAction = `Consolidate research tooling into ${consolidationTarget}.`;
+        const targetToolId = recommendedTool?.toLowerCase() === 'claude' ? 'claude' : 'chatgpt';
+        const consolidationCost = estimatePlanCost(
+          targetToolId,
+          recommendedPlan,
+          input.teamSize
+        );
+        if (consolidationCost !== null) {
+          estimatedMonthlyCost = consolidationCost;
+        }
+        reasoning =
+          'Using three or more overlapping tools for research creates redundant spend; consolidation lowers costs.';
+      } else {
+        // This is one of the other research tools being consolidated AWAY
+        recommendation = 'consolidate';
+        recommendedAction = `Consolidate into ${consolidationTarget}.`;
+        estimatedMonthlyCost = 0;
+        reasoning = `Part of the research stack consolidation into ${consolidationTarget} to reduce redundant subscriptions.`;
       }
-      reasoning =
-        'Using three or more overlapping tools for research creates redundant spend; consolidation lowers costs.';
     }
 
     const monthlySavings = Math.max(0, currentSpend - estimatedMonthlyCost);

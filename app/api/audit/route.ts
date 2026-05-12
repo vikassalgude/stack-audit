@@ -25,20 +25,28 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as FormInput;
     console.log('[API POST /api/audit] Raw request body parsed:', JSON.stringify(body, null, 2));
-    const parsed = formSchema.parse(body) as FormInput;
+    const parsed = formSchema.safeParse(body);
+    if (!parsed.success) {
+      console.warn('[API POST /api/audit] Zod validation failed', parsed.error.flatten());
+      return Response.json(
+        { error: 'Invalid request payload.', details: parsed.error.flatten() },
+        { status: 400 }
+      );
+    }
     console.log('[API POST /api/audit] Zod schema validation passed');
 
-    const auditResult = runAudit(parsed);
+    const auditResult = runAudit(parsed.data as FormInput);
     console.log(`[API POST /api/audit] runAudit completed. Generated auditId: ${auditResult.auditId}, total savings: $${auditResult.totalMonthlySavings}`);
 
     console.log('[API POST /api/audit] Attempting Prisma insert with payload...');
 
-    await createAudit(auditResult);
+    const { id } = await createAudit(auditResult);
 
-    console.log(`[API POST /api/audit] Prisma insert successful for auditId: ${auditResult.auditId}`);
-    return Response.json({ auditId: auditResult.auditId, auditResult });
-  } catch (error) {
+    console.log(`[API POST /api/audit] Audit stored statelessly. Public ID: ${id}`);
+    return Response.json({ auditId: id, auditResult });
+  } catch (error: any) {
     console.error('[API POST /api/audit] Audit route error:', error);
-    return Response.json({ error: 'Invalid request payload or DB error.' }, { status: 400 });
+    const message = error?.message || 'Audit server error.';
+    return Response.json({ error: message }, { status: 500 });
   }
 }

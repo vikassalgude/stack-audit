@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 import type { AuditResult } from '../types';
 
-const MODEL_NAME = 'gemini-1.5-pro';
+const MODEL_NAME = 'gemini-1.5-flash';
 const MAX_TOKENS = 300;
 const TEMPERATURE = 0.3;
 const MAX_RETRIES = 2;

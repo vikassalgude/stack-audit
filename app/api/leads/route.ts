@@ -80,8 +80,9 @@ export async function POST(request: Request) {
     console.log(`[API POST /api/leads] Successfully marked email as sent in DB.`);
 
     return Response.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error('[API POST /api/leads] Route error Catch block:', error);
-    return Response.json({ error: 'Invalid request payload.' }, { status: 400 });
+    const message = error?.message || 'Invalid request payload.';
+    return Response.json({ error: message }, { status: 400 });
   }
 }
